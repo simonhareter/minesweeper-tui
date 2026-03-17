@@ -1,6 +1,6 @@
 public class Field {
-    private boolean isMine, isFlagged;
-    private int row, col, adjacentMines;
+    private boolean isMine, isFlagged, isVisible;
+    private int adjacentMines;
 
     public boolean isMine() {
         return isMine;
@@ -16,6 +16,14 @@ public class Field {
 
     public void setFlagged(boolean flagged) {
         isFlagged = flagged;
+    }
+
+    public boolean isVisible() {
+        return isVisible;
+    }
+
+    public void setVisible(boolean visible) {
+        isVisible = visible;
     }
 
     public int getAdjacentMines() {

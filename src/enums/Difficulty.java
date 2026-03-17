@@ -3,12 +3,11 @@ package enums;
 public enum Difficulty {
     BEGINNER(9,9,10),
     INTERMEDIATE(16,16,40),
-    EXPERT(30,16,99);
+    EXPERT(16,30,99);
 
     private final int rows;
     private final int cols;
     private final int mines;
-
     Difficulty(int rows, int cols, int mines) {
         this.rows = rows;
         this.cols = cols;
