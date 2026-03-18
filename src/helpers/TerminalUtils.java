@@ -1,3 +1,5 @@
+package helpers;
+
 import java.io.IOException;
 
 public class TerminalUtils {

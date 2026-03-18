@@ -1,6 +1,8 @@
 import enums.Difficulty;
 import enums.Direction;
 import java.util.concurrent.atomic.AtomicInteger;
+import static helpers.InputHandler.*;
+import static helpers.TerminalUtils.*;
 
 public class Game {
     private Difficulty difficulty;
@@ -8,17 +10,20 @@ public class Game {
     private int rows, cols;
     private int menuCursorPos, gameXCursorPos, gameYCursorPos;
     private int minesRemaining;
+    private boolean isFirstMove;
 
     private volatile boolean isGameRunning;
     private Thread timerThread;
     private final AtomicInteger secondsElapsed = new AtomicInteger(0);
+
+    private final int GAME_TOP_UI_ROWS = 2;
     private final int COL_WIDTH = 2;
 
     void run() {
-        //IO.print("\033[?25l"); // hide cursor
+        IO.print("\033[?25l"); // hide cursor
         IO.println("\033[38;5;40mMinesweeper\033[37m\n");
         initCursorPos();
-        TerminalUtils.enableRawMode();
+        enableRawMode();
         playMenu();
         playGame();
     }
@@ -36,12 +41,12 @@ public class Game {
         IO.println("[ ] Expert\r");
 
         while (true) {
-            int key = InputHandler.readKey();
+            int key = readKey();
 
             switch (key) {
                 case 'q', -1, 3 -> {
                     IO.print("\033[?25h");  // show cursor
-                    TerminalUtils.disableRawMode();
+                    disableRawMode();
                     System.exit(0);
                 }
 
@@ -100,22 +105,22 @@ public class Game {
 
     private void playGame() {
         isGameRunning = true;
-        InputHandler.moveCursor(Direction.DOWN, 2);
-        startTimer();
+        isFirstMove = true;
         initCursorPos();
         setupMap();
-
+        startTimer();
         // ■ □ ⚑
 
         while (true) {
-            int key = InputHandler.readKey();
+            renderGameCursorCoordinates();
+            int key = readKey();
 
             switch (key) {
                 case 'q', -1, 3 -> {
-                    InputHandler.moveCursor(Direction.DOWN, rows + 1 - gameYCursorPos);
+                    moveCursor(Direction.DOWN, rows + 3 - gameYCursorPos);
                     IO.print("\033[1G");    // move cursor to first column
                     IO.print("\033[?25h");  // show cursor
-                    TerminalUtils.disableRawMode();
+                    disableRawMode();
                     System.exit(0);
                 }
 
@@ -128,7 +133,7 @@ public class Game {
                         clearCursor();
                         int steps = findNextHiddenField(Direction.UP);
                         if (steps != 0) {
-                            InputHandler.moveCursor(Direction.UP, steps);
+                            moveCursor(Direction.UP, steps);
                             gameYCursorPos -= steps;
                         }
                         renderCursor();
@@ -140,7 +145,7 @@ public class Game {
                         clearCursor();
                         int steps = findNextHiddenField(Direction.DOWN);
                         if (steps != 0) {
-                            InputHandler.moveCursor(Direction.DOWN, steps);
+                            moveCursor(Direction.DOWN, steps);
                             gameYCursorPos += steps;
                         }
                         renderCursor();
@@ -152,7 +157,7 @@ public class Game {
                         clearCursor();
                         int steps = findNextHiddenField(Direction.LEFT);
                         if (steps != 0) {
-                            InputHandler.moveCursor(Direction.LEFT, steps * 2);
+                            moveCursor(Direction.LEFT, steps * 2);
                             gameXCursorPos -= steps;
                         }
                         renderCursor();
@@ -164,7 +169,7 @@ public class Game {
                         clearCursor();
                         int steps = findNextHiddenField(Direction.RIGHT);
                         if (steps != 0) {
-                            InputHandler.moveCursor(Direction.RIGHT, steps * COL_WIDTH);
+                            moveCursor(Direction.RIGHT, steps * COL_WIDTH);
                             gameXCursorPos += steps;
                         }
                         renderCursor();
@@ -210,10 +215,9 @@ public class Game {
     }
 
     private void renderTimer() {
-        int TOP_UI_ROWS = 2;
         IO.print("\033[s"); // save cursor pos
-        InputHandler.moveCursor(Direction.UP, TOP_UI_ROWS + gameYCursorPos);
-        InputHandler.moveCursor(Direction.RIGHT, COL_WIDTH * (cols - gameXCursorPos) - 1);
+        moveCursor(Direction.UP, GAME_TOP_UI_ROWS + gameYCursorPos);
+        moveCursor(Direction.RIGHT, COL_WIDTH * (cols - gameXCursorPos) - 1);
         System.out.printf("%03d", secondsElapsed.get());
         IO.print("\033[u"); // resume to saved cursor pos
     }
@@ -285,8 +289,8 @@ public class Game {
 
         IO.println("\r");
 
-        InputHandler.moveCursor(Direction.UP, rows + 1);
-        InputHandler.moveCursor(Direction.RIGHT, 3);
+        moveCursor(Direction.UP, rows + 1);
+        moveCursor(Direction.RIGHT, 3);
     }
 
     private void initMap() {
@@ -313,9 +317,8 @@ public class Game {
     }
 
     private void renderMinesRemaining() {
-        int TOP_UI_ROWS = 2;
-        IO.print("\033[s"); // save cursor pos
-        InputHandler.moveCursor(Direction.UP, TOP_UI_ROWS + gameYCursorPos);
+        IO.print("\033[s");
+        moveCursor(Direction.UP, GAME_TOP_UI_ROWS  + gameYCursorPos);
 
         if (minesRemaining >= 9 || minesRemaining <= -9 || minesRemaining == 0) {
             IO.print("\033[1G");
@@ -325,7 +328,16 @@ public class Game {
         } else IO.print("\033[1G");
 
         IO.print(minesRemaining);
-        IO.print("\033[u"); // resume to saved cursor pos
+        IO.print("\033[u");
+    }
+
+    private void renderGameCursorCoordinates() {
+        IO.print("\033[s");
+        int GAME_BOTTOM_UI_ROWS = 2;
+        moveCursor(Direction.DOWN, rows - gameYCursorPos + GAME_BOTTOM_UI_ROWS);
+        IO.print("\033[1G");
+        System.out.printf("Cursor: (%d,%d)", gameYCursorPos + 1, gameXCursorPos + 1);
+        IO.print("\033[u");
     }
 
     private int findNextHiddenField(Direction dir) {
@@ -379,7 +391,7 @@ public class Game {
         } else {
             IO.print("□");
         }
-        InputHandler.moveCursor(Direction.LEFT, 1);
+        moveCursor(Direction.LEFT, 1);
     }
 
     private void renderCursor() {
@@ -392,7 +404,7 @@ public class Game {
         } else {
             IO.print("■");
         }
-        InputHandler.moveCursor(Direction.LEFT, 1);
+        moveCursor(Direction.LEFT, 1);
     }
 
     private void placeFlag() {
@@ -403,7 +415,7 @@ public class Game {
         if (!f.isFlagged()) {
             f.setFlagged(true);
             IO.print("⚑");
-            InputHandler.moveCursor(Direction.LEFT, 1);
+            moveCursor(Direction.LEFT, 1);
             minesRemaining--;
         } else {
             f.setFlagged(false);
@@ -421,23 +433,41 @@ public class Game {
 
         int minesNearby = f.getAdjacentMines();
 
-        if (f.isMine()) {
-            gameOver(gameYCursorPos, gameXCursorPos);
-        } else {
-            IO.print(getColoredMineCount(minesNearby));
+        if (isFirstMove) {
+            if (f.isMine()) {
+                swapMine();
+            }
+            isFirstMove = false;
         }
 
-        InputHandler.moveCursor(Direction.LEFT, 1);
+        if (f.isMine()) {
+            gameOver(gameYCursorPos, gameXCursorPos);
+            return;
+        }
+
+        IO.print(getColoredMineCount(minesNearby));
+        moveCursor(Direction.LEFT, 1);
+    }
+
+    private void swapMine() {
+        int row, col;
+
+        do {
+            row = (int) (Math.random() * rows);
+            col = (int) (Math.random() * cols);
+        } while(map[row][col].isMine());
+
+        map[row][col].setMine(true);
+        map[gameYCursorPos][gameXCursorPos].setMine(false);
     }
 
     private void moveToMenu() {
-        int TOP_UI_ROWS = 9;
-
-        InputHandler.moveCursor(Direction.UP, TOP_UI_ROWS + gameYCursorPos);
+        int MENU_TOP_UI_ROWS = 9;
+        moveCursor(Direction.UP, MENU_TOP_UI_ROWS + gameYCursorPos);
 
         IO.print("\033[1G");    // move cursor to first column
         IO.print("\033[0J");
-        TerminalUtils.disableRawMode();
+        disableRawMode();
         resetTimer();
         run();
     }
@@ -446,12 +476,11 @@ public class Game {
         isGameRunning = false;
 
         // Move to 0/0
-        if(gameYCursorPos != 0 && gameXCursorPos != 0) {
-            InputHandler.moveCursor(Direction.UP, gameYCursorPos);
-            InputHandler.moveCursor(Direction.LEFT, gameXCursorPos * COL_WIDTH);
-            gameYCursorPos = 0;
-            gameXCursorPos = 0;
-        }
+        if(gameYCursorPos > 0) moveCursor(Direction.UP, gameYCursorPos);
+        if(gameXCursorPos > 0 ) moveCursor(Direction.LEFT, gameXCursorPos * COL_WIDTH);
+        gameYCursorPos = 0;
+        gameXCursorPos = 0;
+
 
         // show all mines
         for(int row = 0; row < rows; row++) {
@@ -463,35 +492,34 @@ public class Game {
                     } else {
                         IO.print("*");
                     }
-                    InputHandler.moveCursor(Direction.LEFT, 1);
+                    moveCursor(Direction.LEFT, 1);
                 }
-                InputHandler.moveCursor(Direction.RIGHT, 2);
-                gameXCursorPos++;
+                if (col < cols - 1) {
+                    moveCursor(Direction.RIGHT, 2);
+                    gameXCursorPos++;
+                }
             }
-            InputHandler.moveCursor(Direction.DOWN, 1);
-            InputHandler.moveCursor(Direction.LEFT, cols * COL_WIDTH);
-            gameYCursorPos++;
+            if(row < rows - 1) {
+                moveCursor(Direction.DOWN, 1);
+                moveCursor(Direction.LEFT, (cols - 1) * COL_WIDTH);
+                gameYCursorPos++;
+                gameXCursorPos = 0;
+            }
         }
-        IO.print("\033[1G");    // move cursor to first column
-        InputHandler.moveCursor(Direction.UP, 1);
 
-
-        int TOP_UI_ROWS = 2;
         while(true) {
-            int key = InputHandler.readKey();
+            int key = readKey();
 
             switch (key) {
                 case 'r' -> {
-                    InputHandler.moveCursor(Direction.UP, rows - 1 + TOP_UI_ROWS);
-                    resetTimer();
-                    playGame();
+                    resetGame();
                 }
                 case 'm' -> moveToMenu();
                 case 'q', 3 -> {
-                    InputHandler.moveCursor(Direction.DOWN, rows + 2 - gameYCursorPos);
+                    moveCursor(Direction.DOWN, rows + 3 - gameYCursorPos);
                     IO.print("\033[1G");    // move cursor to first column
                     IO.print("\033[?25h");  // show cursor
-                    TerminalUtils.disableRawMode();
+                    disableRawMode();
                     System.exit(0);
                 }
             }
@@ -499,9 +527,9 @@ public class Game {
     }
 
     private void resetGame() {
-        int LEFT_UI_COLS = 3, TOP_UI_ROWS = 2;
-        InputHandler.moveCursor(Direction.LEFT, gameXCursorPos * COL_WIDTH + LEFT_UI_COLS);
-        InputHandler.moveCursor(Direction.UP, gameYCursorPos + TOP_UI_ROWS);
+        int GAME_LEFT_UI_COLS = 3;
+        moveCursor(Direction.LEFT, gameXCursorPos * COL_WIDTH + GAME_LEFT_UI_COLS);
+        moveCursor(Direction.UP, gameYCursorPos + GAME_TOP_UI_ROWS);
 
         resetTimer();
         playGame();

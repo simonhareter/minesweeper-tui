@@ -1,3 +1,5 @@
+package helpers;
+
 import enums.Direction;
 
 import java.io.IOException;
