@@ -445,8 +445,21 @@ public class Game {
             return;
         }
 
+        if(minesNearby == 0) {
+            unveilEmptyRegion();
+            return;
+        }
+
         IO.print(getColoredMineCount(minesNearby));
         moveCursor(Direction.LEFT, 1);
+    }
+
+    private void unveilEmptyRegion() {
+        IO.print(getColoredMineCount(0));
+        moveCursor(Direction.LEFT, 1);
+
+        // need to design an algorithm that finds all adjacent empty fields till each direction encounters a field non-zero.
+
     }
 
     private void swapMine() {

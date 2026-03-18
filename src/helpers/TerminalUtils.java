@@ -7,7 +7,10 @@ public class TerminalUtils {
     public static void enableRawMode() {
         try {
             Process p = Runtime.getRuntime().exec(new String[]{"/bin/sh", "-c", "stty raw </dev/tty"});
-            p.waitFor();
+            int exitCode = p.waitFor();
+            if (exitCode != 0) {
+                System.err.println("Failed to enable raw mode");
+            }
         } catch (InterruptedException e) {
             System.err.println("Thread got interrupted");
         } catch (IOException e) {

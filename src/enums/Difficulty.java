@@ -8,6 +8,7 @@ public enum Difficulty {
     private final int rows;
     private final int cols;
     private final int mines;
+
     Difficulty(int rows, int cols, int mines) {
         this.rows = rows;
         this.cols = cols;
