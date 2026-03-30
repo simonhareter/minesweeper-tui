@@ -181,7 +181,7 @@ public class Game {
                     renderMinesRemaining();
                 }
 
-                case '\r', '\n' -> unveilField();
+                case '\r', '\n' -> revealField();
             }
         }
     }
@@ -424,11 +424,9 @@ public class Game {
         }
     }
 
-    private void unveilField() {
+    private void revealField() {
         Field f = map[gameYCursorPos][gameXCursorPos];
-
         if (f.isFlagged()) return;
-
         f.setVisible(true);
 
         int minesNearby = f.getAdjacentMines();
@@ -446,7 +444,7 @@ public class Game {
         }
 
         if(minesNearby == 0) {
-            unveilEmptyRegion();
+            revealEmptyRegion();
             return;
         }
 
@@ -454,12 +452,39 @@ public class Game {
         moveCursor(Direction.LEFT, 1);
     }
 
-    private void unveilEmptyRegion() {
-        IO.print(getColoredMineCount(0));
-        moveCursor(Direction.LEFT, 1);
-
+    private void revealEmptyRegion() {
+        //IO.print(getColoredMineCount(0));
+        //moveCursor(Direction.LEFT, 1);
         // need to design an algorithm that finds all adjacent empty fields till each direction encounters a field non-zero.
 
+        // 1. Check neighbors and reveal if empty
+        revealSurroundingFields();
+
+    }
+
+    private void revealSurroundingFields() {
+        // bring cursor to top left corner to start iterating through neighbors in the 2 for loops
+        moveCursor(Direction.LEFT, 2);
+        moveCursor(Direction.UP, 1);
+
+        for (int i = -1; i < 2; i++) {
+            for (int j = -1; j < 2; j++) {
+                boolean isOutOfBoundRow = (i + gameYCursorPos < 0 || i + gameYCursorPos > rows - 1);
+                boolean isOutOfBoundCol = (j + gameXCursorPos < 0 || j + gameXCursorPos > cols - 1);
+                if (isOutOfBoundRow || isOutOfBoundCol) continue;
+                Field currField = map[gameYCursorPos + i][gameXCursorPos + j];
+                if(currField.getAdjacentMines() == 0) {
+                    IO.print(getColoredMineCount(0));
+                    moveCursor(Direction.LEFT, 1);
+                }
+                moveCursor(Direction.RIGHT, 2);
+            }
+            moveCursor(Direction.DOWN, 1);
+            moveCursor(Direction.LEFT, 4);
+        }
+
+        moveCursor(Direction.LEFT, 2);
+        moveCursor(Direction.UP, 1);
     }
 
     private void swapMine() {

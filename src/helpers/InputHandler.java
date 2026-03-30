@@ -26,4 +26,8 @@ public class InputHandler {
     public static void moveCursor(Direction dir, int n) {
         System.out.printf("\033[%d%c", n,  dir.getCode());
     }
+
+    public static void moveCursorTo(int y, int x) {
+
+    }
 }
