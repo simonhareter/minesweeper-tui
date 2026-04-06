@@ -8,7 +8,7 @@ public class Game {
     private Difficulty difficulty;
     private Field[][] map;
     private int rows, cols;
-    private int menuCursorPos, gameXCursorPos, gameYCursorPos;
+    private int menuCursorPos, gameColCursorPos, gameRowCursorPos;
     private int minesRemaining;
     private boolean isFirstMove;
 
@@ -30,8 +30,8 @@ public class Game {
 
     private void initCursorPos() {
         menuCursorPos = 0;
-        gameXCursorPos = 0;
-        gameYCursorPos = 0;
+        gameColCursorPos = 0;
+        gameRowCursorPos = 0;
     }
 
     private void playMenu() {
@@ -116,7 +116,7 @@ public class Game {
             switch (key) {
                 case 'q', -1, 3 -> {
                     // move TermCursor down to not override game prints
-                    moveTermCursor(Direction.DOWN, rows + 3 - gameYCursorPos);
+                    moveTermCursor(Direction.DOWN, rows + 3 - gameRowCursorPos);
                     quitGame();
                 }
 
@@ -125,25 +125,25 @@ public class Game {
                 case 'r' -> resetGame();
 
                 case 'w', 'A', 'k' -> {
-                    if (gameYCursorPos >= 1) {
+                    if (gameRowCursorPos >= 1) {
                         moveToNextHiddenField(Direction.UP);
                     }
                 }
 
                 case 's', 'B', 'j' -> {
-                    if (gameYCursorPos < rows - 1) {
+                    if (gameRowCursorPos < rows - 1) {
                         moveToNextHiddenField(Direction.DOWN);
                     }
                 }
 
                 case 'a', 'D', 'h' -> {
-                    if (gameXCursorPos >= 1) {
+                    if (gameColCursorPos >= 1) {
                         moveToNextHiddenField(Direction.LEFT);
                     }
                 }
 
                 case 'd', 'C', 'l' -> {
-                    if (gameXCursorPos < cols - 1) {
+                    if (gameColCursorPos < cols - 1) {
                         moveToNextHiddenField(Direction.RIGHT);
                     }
                 }
@@ -174,8 +174,8 @@ public class Game {
     }
 
     private int stepsToNextHiddenField(Direction dir) {
-        int currPosY = gameYCursorPos;
-        int currPosX = gameXCursorPos;
+        int currPosY = gameRowCursorPos;
+        int currPosX = gameColCursorPos;
         int steps = 1;
 
         return switch (dir) {
@@ -184,7 +184,7 @@ public class Game {
                     currPosY--;
                     steps++;
                 }
-                if(gameYCursorPos - steps < 0) yield 0;
+                if(gameRowCursorPos - steps < 0) yield 0;
                 yield steps;
             }
             case DOWN -> {
@@ -192,7 +192,7 @@ public class Game {
                     currPosY++;
                     steps++;
                 }
-                if(gameYCursorPos + steps > rows - 1) yield 0;
+                if(gameRowCursorPos + steps > rows - 1) yield 0;
                 yield steps;
             }
             case LEFT -> {
@@ -200,7 +200,7 @@ public class Game {
                     currPosX--;
                     steps++;
                 }
-                if(gameXCursorPos - steps < 0) yield 0;
+                if(gameColCursorPos - steps < 0) yield 0;
                 yield steps;
             }
             case RIGHT -> {
@@ -208,7 +208,7 @@ public class Game {
                     currPosX++;
                     steps++;
                 }
-                if(gameXCursorPos + steps > cols - 1) yield 0;
+                if(gameColCursorPos + steps > cols - 1) yield 0;
                 yield steps;
             }
         };
@@ -216,28 +216,28 @@ public class Game {
 
     private void moveCursor(Direction dir, int steps) {
         // moving game state
-        int newY = gameYCursorPos;
-        int newX = gameXCursorPos;
+        int newRow = gameRowCursorPos;
+        int newCol = gameColCursorPos;
 
         switch (dir) {
-            case UP -> newY -= steps;
-            case DOWN ->  newY += steps;
-            case LEFT ->  newX -= steps;
-            case RIGHT -> newX += steps;
+            case UP -> newRow -= steps;
+            case DOWN ->  newRow += steps;
+            case LEFT ->  newCol -= steps;
+            case RIGHT -> newCol += steps;
         }
 
-        if(!isInBounds(newX, newY)) return;
+        if(isOutOfBounds(newCol, newRow)) return;
 
-        gameYCursorPos = newY;
-        gameXCursorPos = newX;
+        gameRowCursorPos = newRow;
+        gameColCursorPos = newCol;
 
         // moving visual cursor
-        int stepMulti = (dir == Direction.LEFT || dir == Direction.RIGHT) ? 2 : 1; // accounting for space horizontally between fields
+        int stepMulti = (dir == Direction.LEFT || dir == Direction.RIGHT) ? COL_WIDTH : 1; // accounting for space horizontally between fields
         moveTermCursor(dir, steps * stepMulti);
     }
 
-    private boolean isInBounds(int x, int y) {
-        return x >= 0 && x <= cols - 1 && y >= 0 && y <= rows - 1;
+    private boolean isOutOfBounds(int row, int col) {
+        return row < 0 || row >= rows || col < 0 || col >= cols;
     }
 
     private void startTimer() {
@@ -270,8 +270,8 @@ public class Game {
 
     private void renderTimer() {
         IO.print("\033[s"); // save cursor pos
-        moveTermCursor(Direction.UP, GAME_TOP_UI_ROWS + gameYCursorPos);
-        moveTermCursor(Direction.RIGHT, COL_WIDTH * (cols - gameXCursorPos) - 1);
+        moveTermCursor(Direction.UP, GAME_TOP_UI_ROWS + gameRowCursorPos);
+        moveTermCursor(Direction.RIGHT, COL_WIDTH * (cols - gameColCursorPos) - 1);
         System.out.printf("%03d", secondsElapsed.get());
         IO.print("\033[u"); // resume to saved cursor pos
     }
@@ -352,9 +352,9 @@ public class Game {
         cols = difficulty.getCols();
         map = new Field[rows][cols];
 
-        for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < cols; j++) {
-                map[i][j] = new Field();
+        for (int row = 0; row < rows; row++) {
+            for (int col = 0; col < cols; col++) {
+                map[row][col] = new Field();
             }
         }
     }
@@ -372,7 +372,7 @@ public class Game {
 
     private void renderMinesRemaining() {
         IO.print("\033[s");
-        moveTermCursor(Direction.UP, GAME_TOP_UI_ROWS  + gameYCursorPos);
+        moveTermCursor(Direction.UP, GAME_TOP_UI_ROWS  + gameRowCursorPos);
 
         if (minesRemaining >= 9 || minesRemaining <= -9 || minesRemaining == 0) {
             IO.print("\033[1G");
@@ -388,15 +388,15 @@ public class Game {
     private void renderGameCursorCoordinates() {
         IO.print("\033[s");
         int GAME_BOTTOM_UI_ROWS = 2;
-        moveTermCursor(Direction.DOWN, rows - gameYCursorPos + GAME_BOTTOM_UI_ROWS);
+        moveTermCursor(Direction.DOWN, rows - gameRowCursorPos + GAME_BOTTOM_UI_ROWS);
         IO.print("\033[1G");
-        System.out.printf("Cursor: (%d,%d)", gameYCursorPos + 1, gameXCursorPos + 1);
+        System.out.printf("Cursor: (%d,%d)", gameRowCursorPos + 1, gameColCursorPos + 1);
         IO.print("\033[u");
     }
 
 
     private void clearCursor() {
-        Field f = map[gameYCursorPos][gameXCursorPos];
+        Field f = map[gameRowCursorPos][gameColCursorPos];
 
         if (f.isVisible()) return;
 
@@ -409,7 +409,7 @@ public class Game {
     }
 
     private void renderCursor() {
-        Field f = map[gameYCursorPos][gameXCursorPos];
+        Field f = map[gameRowCursorPos][gameColCursorPos];
 
         if (f.isVisible()) return;
 
@@ -422,7 +422,7 @@ public class Game {
     }
 
     private void placeFlag() {
-        Field f = map[gameYCursorPos][gameXCursorPos];
+        Field f = map[gameRowCursorPos][gameColCursorPos];
 
         if (f.isVisible()) return;
 
@@ -439,7 +439,7 @@ public class Game {
     }
 
     private void revealField() {
-        Field f = map[gameYCursorPos][gameXCursorPos];
+        Field f = map[gameRowCursorPos][gameColCursorPos];
         if (f.isFlagged()) return;
         f.setVisible(true);
 
@@ -453,7 +453,7 @@ public class Game {
         }
 
         if (f.isMine()) {
-            gameOver(gameYCursorPos, gameXCursorPos);
+            gameOver(gameRowCursorPos, gameColCursorPos);
             return;
         }
 
@@ -467,8 +467,8 @@ public class Game {
     }
 
     private void revealEmptyRegion() {
-        //IO.print(getColoredMineCount(0));
-        //moveCursor(Direction.LEFT, 1);
+        IO.print(getColoredMineCount(0));
+        moveTermCursor(Direction.LEFT, 1);
         // need to design an algorithm that finds all adjacent empty fields till each direction encounters a field non-zero.
 
         // 1. Check neighbors and reveal if empty
@@ -477,19 +477,39 @@ public class Game {
     }
 
     private void revealSurroundingFields() {
-        for (int i = -1; i < 2; i++) {
-            for (int j = -1; j < 2; j++) {
-                Field currField = map[gameYCursorPos + i][gameXCursorPos + j];
-                if(currField.getAdjacentMines() == 0) {
-                    IO.print("/033[s");
-                    moveCursorTo(gameYCursorPos + i, gameXCursorPos + j);
-                    IO.print(getColoredMineCount(0));
-                    moveTermCursor(Direction.LEFT, 1);
-                    IO.print("/033[u");
-                }
-                moveTermCursor(Direction.RIGHT, 2);
+        for (int row = -1; row < 2; row++) {
+            for (int col = -1; col < 2; col++) {
+                if (row == 0 && col == 0) continue;
+
+                int tempRow = gameRowCursorPos + row;
+                int tempCol = gameColCursorPos + col;
+
+                if(isOutOfBounds(tempRow, tempCol)) continue;
+
+                Field currField = map[tempRow][tempCol];
+
+                IO.print("\033[s");
+
+                moveCursorTo(tempRow, tempCol);
+                currField.setVisible(true);
+                IO.print(getColoredMineCount(currField.getAdjacentMines()));
+                moveTermCursor(Direction.LEFT, 1);
+
+                IO.print("\033[u");
             }
         }
+    }
+
+    private void moveCursorTo(int row, int col) {
+        // calculate how many fields the cursor has to move to reach destination map[row][col]
+        int moveRow = row - gameRowCursorPos;
+        int moveCol = col - gameColCursorPos;
+
+        Direction vertical = moveRow < 0 ? Direction.UP : Direction.DOWN;
+        moveTermCursor(vertical, Math.abs(moveRow));
+
+        Direction horizontal = moveCol < 0 ? Direction.LEFT : Direction.RIGHT;
+        moveTermCursor(horizontal, Math.abs(moveCol * COL_WIDTH));
     }
 
     private void swapMine() {
@@ -501,12 +521,12 @@ public class Game {
         } while(map[row][col].isMine());
 
         map[row][col].setMine(true);
-        map[gameYCursorPos][gameXCursorPos].setMine(false);
+        map[gameRowCursorPos][gameColCursorPos].setMine(false);
     }
 
     private void moveToMenu() {
         int MENU_TOP_UI_ROWS = 9;
-        moveTermCursor(Direction.UP, MENU_TOP_UI_ROWS + gameYCursorPos);
+        moveTermCursor(Direction.UP, MENU_TOP_UI_ROWS + gameRowCursorPos);
 
         IO.print("\033[1G");    // move cursor to first column
         IO.print("\033[0J");
@@ -519,10 +539,10 @@ public class Game {
         isGameRunning = false;
 
         // Move to 0/0
-        if(gameYCursorPos > 0) moveTermCursor(Direction.UP, gameYCursorPos);
-        if(gameXCursorPos > 0 ) moveTermCursor(Direction.LEFT, gameXCursorPos * COL_WIDTH);
-        gameYCursorPos = 0;
-        gameXCursorPos = 0;
+        if(gameRowCursorPos > 0) moveTermCursor(Direction.UP, gameRowCursorPos);
+        if(gameColCursorPos > 0 ) moveTermCursor(Direction.LEFT, gameColCursorPos * COL_WIDTH);
+        gameRowCursorPos = 0;
+        gameColCursorPos = 0;
 
 
         // show all mines
@@ -539,14 +559,14 @@ public class Game {
                 }
                 if (col < cols - 1) {
                     moveTermCursor(Direction.RIGHT, 2);
-                    gameXCursorPos++;
+                    gameColCursorPos++;
                 }
             }
             if(row < rows - 1) {
                 moveTermCursor(Direction.DOWN, 1);
                 moveTermCursor(Direction.LEFT, (cols - 1) * COL_WIDTH);
-                gameYCursorPos++;
-                gameXCursorPos = 0;
+                gameRowCursorPos++;
+                gameColCursorPos = 0;
             }
         }
 
@@ -559,7 +579,7 @@ public class Game {
                 }
                 case 'm' -> moveToMenu();
                 case 'q', 3 -> {
-                    moveTermCursor(Direction.DOWN, rows + 3 - gameYCursorPos);
+                    moveTermCursor(Direction.DOWN, rows + 3 - gameRowCursorPos);
                     IO.print("\033[1G");    // move cursor to first column
                     IO.print("\033[?25h");  // show cursor
                     disableRawMode();
@@ -571,8 +591,8 @@ public class Game {
 
     private void resetGame() {
         int GAME_LEFT_UI_COLS = 3;
-        moveTermCursor(Direction.LEFT, gameXCursorPos * COL_WIDTH + GAME_LEFT_UI_COLS);
-        moveTermCursor(Direction.UP, gameYCursorPos + GAME_TOP_UI_ROWS);
+        moveTermCursor(Direction.LEFT, gameColCursorPos * COL_WIDTH + GAME_LEFT_UI_COLS);
+        moveTermCursor(Direction.UP, gameRowCursorPos + GAME_TOP_UI_ROWS);
 
         resetTimer();
         playGame();

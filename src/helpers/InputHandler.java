@@ -24,14 +24,9 @@ public class InputHandler {
     }
 
     public static void moveTermCursor(Direction dir, int n) {
+        if(n <= 0) return;
         System.out.printf("\033[%d%c", n,  dir.getCode());
     }
 
-    public static void moveCursorTo(int row, int col) {
-        int currRow = row;
-        int currCol = col;
-
-
-    }
 
 }
