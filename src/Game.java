@@ -1,5 +1,7 @@
 import enums.Difficulty;
 import enums.Direction;
+
+import java.io.File;
 import java.util.concurrent.atomic.AtomicInteger;
 import static helpers.InputHandler.*;
 import static helpers.TerminalUtils.*;
@@ -17,14 +19,21 @@ public class Game {
     private Thread timerThread;
     private final AtomicInteger secondsElapsed = new AtomicInteger(0);
 
+    private final RankingDB rankingDB;
+
     private final int GAME_TOP_UI_ROWS = 2;
     private final int COL_WIDTH = 2;
+
+    public Game() {
+        rankingDB = new RankingDB();
+    }
 
     void run() {
         //IO.print("\033[?25l"); // hide cursor
         IO.println("\033[38;5;40mMinesweeper\033[37m\n");
         initCursorPos();
         enableRawMode();
+        rankingDB.createTable();
         playMenu();
         playGame();
     }

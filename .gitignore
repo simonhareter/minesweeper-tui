@@ -7,6 +7,8 @@ out/
 .idea
 *.class
 
+Minesweeper.db
+
 ### Eclipse ###
 .apt_generated
 .classpath
