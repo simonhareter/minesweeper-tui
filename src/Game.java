@@ -7,9 +7,10 @@ import static helpers.TerminalUtils.*;
 public class Game {
     private Difficulty difficulty;
     private Field[][] map;
-    private int rows, cols;
+    private int rows, cols, totalFields, mines;
     private int menuCursorPos, gameColCursorPos, gameRowCursorPos;
     private int minesRemaining;
+    private int fieldsRevealed = 0;
     private boolean isFirstMove;
 
     private volatile boolean isGameRunning;
@@ -74,7 +75,6 @@ public class Game {
                             difficulty = Difficulty.EXPERT;
                         }
                     }
-                    minesRemaining = difficulty.getMines();
                 }
             }
 
@@ -104,13 +104,18 @@ public class Game {
     private void playGame() {
         isGameRunning = true;
         isFirstMove = true;
+        fieldsRevealed = 0;
         initCursorPos();
         setupMap();
         startTimer();
+        renderSmiley("\uD83D\uDE42");
         // ■ □ ⚑
 
-        while (true) {
+        while (isGameRunning) {
             renderGameCursorCoordinates();
+
+            if(fieldsRevealed == totalFields - mines) gameWon();
+
             int key = readKey();
 
             Direction dir = getDirection(key);
@@ -144,36 +149,26 @@ public class Game {
     }
 
     private void handleMovement(Direction dir) {
-        if(hasAnyValidMove()) moveToNextHiddenField(dir);
+        if(hasAnyValidMove(dir)) moveToNextHiddenField(dir);
         else {
             // find the next possible field depending on directional input
             findNearestPossibleField(dir);
         }
     }
 
-    private boolean hasAnyValidMove() {
-        return stepsToNextHiddenField(Direction.UP) > 0 ||
-                stepsToNextHiddenField(Direction.DOWN) > 0 ||
-                stepsToNextHiddenField(Direction.LEFT) > 0 ||
-                stepsToNextHiddenField(Direction.RIGHT) > 0;
-    }
-
-    private boolean canMove(Direction dir) {
-        return switch (dir) {
-            case UP -> gameRowCursorPos >= 1;
-            case DOWN -> gameRowCursorPos < rows - 1;
-            case LEFT -> gameColCursorPos >= 1;
-            case RIGHT -> gameColCursorPos < cols - 1;
-        };
+    private boolean hasAnyValidMove(Direction dir) {
+        return stepsToNextHiddenField(dir) > 0;
     }
 
     private void findNearestPossibleField(Direction dir) {
         int bestScore = Integer.MAX_VALUE;
         int nearestRow = -1;
         int nearestCol = -1;
+
         for(int row = 0; row < rows; row++) {
             for(int col = 0; col < cols; col++) {
                 if(map[row][col].isVisible()) continue;
+                if(row == gameRowCursorPos && col == gameColCursorPos) continue;
                 int distance = Math.abs(row - gameRowCursorPos) + Math.abs(col - gameColCursorPos);
                 int penalty = calcPenalty(dir, row, col);
                 int score = distance + penalty;
@@ -186,11 +181,9 @@ public class Game {
         }
 
         if(nearestRow != -1) {
-            IO.print("\033[s");
-            moveTermCursor(Direction.DOWN, 13);
-            IO.println(nearestRow + " / " + nearestCol);
-            IO.print("\033[u");
+            clearCursor();
             moveCursorTo(nearestRow, nearestCol);
+            renderCursor();
             gameRowCursorPos = nearestRow;
             gameColCursorPos = nearestCol;
         }
@@ -321,17 +314,18 @@ public class Game {
         IO.print("\033[s"); // save cursor pos
         moveTermCursor(Direction.UP, GAME_TOP_UI_ROWS + gameRowCursorPos);
         moveTermCursor(Direction.RIGHT, COL_WIDTH * (cols - gameColCursorPos) - 2);
-        System.out.printf("%04d", secondsElapsed.get());
+        IO.print("\033[0K");
+        System.out.printf("%03d", secondsElapsed.get());
         IO.print("\033[u"); // resume to saved cursor pos
     }
 
     private void setupMap() {
         initMap();
 
-        int mines = difficulty.getMines();
-        while (mines > 0) {
+        int minesToPlace = mines;
+        while (minesToPlace > 0) {
             boolean isMinePlaced = placeRandomMine();
-            if (isMinePlaced) mines--;
+            if (isMinePlaced) minesToPlace--;
         }
 
         IO.println(minesRemaining + "\r");
@@ -399,6 +393,9 @@ public class Game {
     private void initMap() {
         rows = difficulty.getRows();
         cols = difficulty.getCols();
+        totalFields = rows * cols;
+        mines = difficulty.getMines();
+        minesRemaining = mines;
         map = new Field[rows][cols];
 
         for (int row = 0; row < rows; row++) {
@@ -440,6 +437,17 @@ public class Game {
         moveTermCursor(Direction.DOWN, rows - gameRowCursorPos + GAME_BOTTOM_UI_ROWS);
         IO.print("\033[1G");
         System.out.printf("Cursor: (%d,%d)", gameRowCursorPos + 1, gameColCursorPos + 1);
+        IO.print("\033[u");
+    }
+
+    private void renderSmiley(String smiley) {
+        IO.print("\033[s");
+        moveTermCursor(Direction.UP, GAME_TOP_UI_ROWS + gameRowCursorPos);
+        IO.print("\033[11G");
+
+        // 🙂 😎 😢
+        IO.print(smiley);
+
         IO.print("\033[u");
     }
 
@@ -491,8 +499,6 @@ public class Game {
         Field f = map[gameRowCursorPos][gameColCursorPos];
         if (f.isFlagged()) return;
 
-        int minesNearby = f.getAdjacentMines();
-
         if (isFirstMove) {
             if (f.isMine()) {
                 swapMine();
@@ -505,15 +511,21 @@ public class Game {
             return;
         }
 
+        int minesNearby = f.getAdjacentMines();
+
         if(minesNearby == 0) {
             revealEmptyRegion(gameRowCursorPos, gameColCursorPos);
-            return;
+        } else {
+            IO.print(getColoredMineCount(minesNearby));
+            moveTermCursor(Direction.LEFT, 1);
         }
 
-        f.setVisible(true);
+        if(!f.isVisible()) {
+            f.setVisible(true);
+            fieldsRevealed++;
 
-        IO.print(getColoredMineCount(minesNearby));
-        moveTermCursor(Direction.LEFT, 1);
+            if(fieldsRevealed >= (totalFields - mines)) gameWon();
+        }
     }
 
     private void revealEmptyRegion(int row, int col) {
@@ -524,6 +536,9 @@ public class Game {
         if(currField.isVisible() || currField.isMine()) return;
 
         currField.setVisible(true);
+        fieldsRevealed++;
+
+        if(fieldsRevealed >= (totalFields - mines)) gameWon();
 
         int minesNearby = currField.getAdjacentMines();
 
@@ -593,8 +608,37 @@ public class Game {
         run();
     }
 
+    private void gameWon() {
+        isGameRunning = false;
+        renderSmiley("\uD83D\uDE0E");
+
+        boolean waiting = true;
+
+        while(waiting) {
+            int key = readKey();
+
+            switch (key) {
+                case 'r' -> {
+                    waiting = false;
+                    resetGame();
+                }
+                case 'm' -> {
+                    waiting = false;
+                    moveToMenu();
+                }
+                case 'q', 3 -> {
+                    waiting = false;
+                    moveTermCursor(Direction.DOWN, rows + 3 - gameRowCursorPos);
+                    IO.print("\033[1G");    // move cursor to first column
+                    quitGame();
+                }
+            }
+        }
+    }
+
     private void gameOver(int mineY, int mineX) {
         isGameRunning = false;
+        renderSmiley("\uD83D\uDE22");
 
         // Move to 0/0
         if(gameRowCursorPos > 0) moveTermCursor(Direction.UP, gameRowCursorPos);
@@ -627,15 +671,22 @@ public class Game {
             }
         }
 
-        while(true) {
+        boolean waiting = true;
+
+        while(waiting) {
             int key = readKey();
 
             switch (key) {
                 case 'r' -> {
+                    waiting = false;
                     resetGame();
                 }
-                case 'm' -> moveToMenu();
+                case 'm' -> {
+                    waiting = false;
+                    moveToMenu();
+                }
                 case 'q', 3 -> {
+                    waiting = false;
                     moveTermCursor(Direction.DOWN, rows + 3 - gameRowCursorPos);
                     IO.print("\033[1G");    // move cursor to first column
                    quitGame();
@@ -655,7 +706,6 @@ public class Game {
         IO.print("\033[s");
         moveTermCursor(Direction.UP, GAME_TOP_UI_ROWS  + gameRowCursorPos);
         IO.print("\033[1G");
-        minesRemaining = difficulty.getMines();
         IO.print(minesRemaining);
         moveTermCursor(Direction.LEFT, 1);
         IO.print("\033[u");
@@ -674,7 +724,6 @@ public class Game {
         }
 
         secondsElapsed.set(0);
-        isGameRunning = true;
     }
 
     private String getColoredMineCount(int minesNearby) {
