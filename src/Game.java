@@ -2,33 +2,36 @@ import enums.Difficulty;
 import enums.Direction;
 
 import java.util.concurrent.atomic.AtomicInteger;
+
 import static helpers.InputHandler.*;
 import static helpers.TerminalUtils.*;
 
 public class Game {
     private Difficulty difficulty;
     private Field[][] map;
+    private final String[] gameMenu = {"Play", "Rankings", "Quit"};
+    private final String[] difficultyMenu = {"Beginner", "Intermediate", "Expert"};
     private int rows, cols, totalFields, mines;
-    private int menuSelectedIdx, difficultySelectedIdx, gameColCursorPos, gameRowCursorPos;
-    private int minesRemaining;
-    private int fieldsRevealed = 0;
+    private int gameColCursorPos;
+    private int gameRowCursorPos;
+    private int minesRemaining, fieldsRevealed;
     private boolean isFirstMove;
 
     private volatile boolean isGameRunning;
     private Thread timerThread;
     private final AtomicInteger secondsElapsed = new AtomicInteger(0);
 
+    private final int GAME_TOP_UI_ROWS = 2;
+    private final int COL_WIDTH = 2;
     private final RankingDB rankingDB;
     private final String[] logo = {
-    "        _                                                   ",
-    "  /\\/\\ (_)_ __   ___  _____      _____  ___ _ __   ___ _ __  ",
-    " /    \\| | '_ \\ / _ \\/ __\\ \\ /\\ / / _ \\/ _ \\ '_ \\ / _ \\ '__|",
+            "        _                                                   ",
+            "  /\\/\\ (_)_ __   ___  _____      _____  ___ _ __   ___ _ __  ",
+            " /    \\| | '_ \\ / _ \\/ __\\ \\ /\\ / / _ \\/ _ \\ '_ \\ / _ \\ '__|",
             "/ /\\/\\ \\ | | | |  __/\\__ \\\\ V  V /  __/  __/ |_) |  __/ |   ",
             "\\/    \\/_|_| |_|\\___||___/ \\_/\\_/ \\___|\\___| .__/ \\___|_|   ",
             "                                           |_|              "
-};
-    private final int GAME_TOP_UI_ROWS = 2;
-    private final int COL_WIDTH = 2;
+    };
 
     public Game() {
         rankingDB = new RankingDB();
@@ -37,8 +40,6 @@ public class Game {
     void run() {
         IO.print("\033[?25l"); // hide cursor
         renderLogo();
-        //IO.println("\033[38;5;33mMinesweeper\033[37m\n");
-        initCursorPos();
         enableRawMode();
         rankingDB.createTable();
         playMenu();
@@ -50,26 +51,20 @@ public class Game {
         }
     }
 
-    private void initCursorPos() {
-        gameColCursorPos = 0;
-        gameRowCursorPos = 0;
-    }
-
     private void playMenu() {
-        menuSelectedIdx = 0;
-        IO.println("\033[38;5;223m❯ Play\033[37m \r");
-        IO.println("  Rankings\r");
-        IO.println("  Quit\r");
+        int menuSelectedIdx = 0;
+
+        renderMenu(gameMenu, menuSelectedIdx, true);
 
         boolean waiting = true;
 
-        while(waiting) {
+        while (waiting) {
             int key = readKey();
 
             switch (key) {
                 case 'q', -1, 3 -> quitGame();
                 case '\n', '\r' -> {
-                    switch(menuSelectedIdx) {
+                    switch (menuSelectedIdx) {
                         case 0 -> {
                             selectDifficulty();
                             playGame();
@@ -82,51 +77,23 @@ public class Game {
                 case 'w', 'A', 'k' -> {
                     if (menuSelectedIdx >= 1) {
                         menuSelectedIdx--;
-                        renderMenu();
+                        renderMenu(gameMenu, menuSelectedIdx, false);
                     }
                 }
                 case 's', 'B', 'j' -> {
                     if (menuSelectedIdx <= 1) {
                         menuSelectedIdx++;
-                        renderMenu();
+                        renderMenu(gameMenu, menuSelectedIdx, false);
                     }
                 }
             }
         }
     }
 
-    private void renderMenu() {
-        IO.print("\033[3F");
-
-        String[] values = {"Play", "Rankings", "Quit"};
-        int menuOptions = values.length;
-
-        for(int idx = 0; idx < menuOptions; idx++) {
-            String menuOption = values[idx];
-            if(idx == menuSelectedIdx) {
-                IO.print("\033[2K");
-                IO.print("\033[1G");
-                System.out.printf("\u001B[38;5;223m❯ %s\u001B[37m \n", menuOption);
-            } else {
-                IO.print("\033[2K");
-                IO.print("\033[1G");
-                System.out.printf("  %s\n", menuOption);
-            }
-        }
-    }
-
-     private void renderRankings() {
-
-    }
-
     private void selectDifficulty() {
-        difficultySelectedIdx = 0;
-        IO.print("\033[3F");
+        int difficultySelectedIdx = 0;
 
-        IO.println("Select a difficulty:\r");
-        IO.println("\u001B[38;5;223m❯ Beginner\u001B[37m\r");
-        IO.println("  Intermediate\r");
-        IO.println("  Expert\r");
+        renderMenu(difficultyMenu, difficultySelectedIdx, false);
 
         boolean waiting = true;
 
@@ -136,20 +103,21 @@ public class Game {
             switch (key) {
                 case 'q', -1, 3 -> quitGame();
                 case 'm' -> {
-                    IO.print("\033[4F");
+                    IO.print("\033[3F");
                     IO.print("\033[0J");
                     playMenu();
+                    waiting = false;
                 }
                 case 'w', 'A', 'k' -> {
                     if (difficultySelectedIdx >= 1) {
                         difficultySelectedIdx--;
-                        renderDifficultyMenu();
+                        renderMenu(difficultyMenu, difficultySelectedIdx, false);
                     }
                 }
                 case 's', 'B', 'j' -> {
                     if (difficultySelectedIdx <= 1) {
                         difficultySelectedIdx++;
-                        renderDifficultyMenu();
+                        renderMenu(difficultyMenu, difficultySelectedIdx, false);
                     }
                 }
                 case '\n', '\r' -> {
@@ -164,28 +132,55 @@ public class Game {
         }
     }
 
-    private void renderDifficultyMenu() {
-        IO.print("\033[3F");
+    private void renderMenu(String[] items, int selectedIdx, boolean skipRowChange) {
+        StringBuilder sb = new StringBuilder();
 
-        Difficulty[] values = Difficulty.values();
-        int difficulties = values.length;
+        if(!skipRowChange) sb.append("\033[3F");
 
-        for(int idx = 0; idx < difficulties; idx++) {
-            String difficulty = values[idx].toString();
-            if(idx == difficultySelectedIdx) {
-                IO.print("\033[2K");
-                IO.print("\033[1G");
-                System.out.printf("\u001B[38;5;223m❯ %s\u001B[37m \n", difficulty);
+        int menuLength = items.length;
+
+        for (int idx = 0; idx < menuLength; idx++) {
+            String menuOption = items[idx];
+            sb.append("\033[2K");
+            sb.append("\033[1G");
+            if (idx == selectedIdx) {
+                sb.append("\u001B[38;5;223m❯ ")
+                        .append(menuOption)
+                        .append("\u001B[37m\n");
             } else {
-                IO.print("\033[2K");
-                IO.print("\033[1G");
-                System.out.printf("  %s\n", difficulty);
+                sb.append("  ")
+                        .append(menuOption)
+                        .append("\n");
+            }
+        }
+        IO.print(sb.toString());
+    }
+
+    private void renderRankings() {
+        IO.print("\033[3F");
+        IO.print("\033[0J");
+        IO.println("render rankings lmfao");
+        IO.print("\033[1G");
+
+        boolean waiting = true;
+
+        while (waiting) {
+            int key = readKey();
+
+            switch (key) {
+                case 'q', -1, 3 -> quitGame();
+                case 'm' -> {
+                    IO.print("\033[1F");
+                    IO.print("\033[0J");
+                    playMenu();
+                    waiting = false;
+                }
             }
         }
     }
 
     private void playGame() {
-        IO.print("\033[4F");
+        IO.print("\033[3F");
         IO.print("\033[0J");
 
         isGameRunning = true;
@@ -200,13 +195,13 @@ public class Game {
         while (isGameRunning) {
             renderGameCursorCoordinates();
 
-            if(fieldsRevealed == totalFields - mines) gameWon();
+            if (fieldsRevealed == totalFields - mines) gameWon();
 
             int key = readKey();
 
             Direction dir = getDirection(key);
-            if(dir != null) handleMovement(dir);
-            
+            if (dir != null) handleMovement(dir);
+
             switch (key) {
                 case 'q', -1, 3 -> {
                     // move TermCursor down to not override game prints
@@ -223,7 +218,110 @@ public class Game {
             }
         }
     }
-    
+
+    private void setupMap() {
+        initMap();
+
+        int minesToPlace = mines;
+        while (minesToPlace > 0) {
+            boolean isMinePlaced = placeRandomMine();
+            if (isMinePlaced) minesToPlace--;
+        }
+
+        StringBuilder sb = new StringBuilder();
+
+        sb.append(minesRemaining).append("\n");
+
+        // top border
+        sb.append("┌");
+        sb.repeat("─", Math.max(0, cols * 2 + 3));
+        sb.append("┐\n");
+
+        // calculate minesNearby + render grid
+        for (int i = 0; i < rows; i++) {
+            sb.append("│  ");
+
+            for (int j = 0; j < cols; j++) {
+
+                if (i == 0 && j == 0) {
+                    sb.append("■");
+                } else {
+                    sb.append("□");
+                }
+
+                if (j < cols - 1) {
+                    sb.append(" ");
+                }
+
+                if (map[i][j].isMine()) {
+                    continue;
+                }
+
+                int mineCounter = 0;
+
+                for (int k = -1; k <= 1; k++) {
+                    for (int l = -1; l <= 1; l++) {
+
+                        boolean isItself = (k == 0 && l == 0);
+                        boolean isOutOfBoundRow = (i + k < 0 || i + k > rows - 1);
+                        boolean isOutOfBoundCol = (j + l < 0 || j + l > cols - 1);
+
+                        if (isItself || isOutOfBoundRow || isOutOfBoundCol) continue;
+
+                        if (map[i + k][j + l].isMine()) {
+                            mineCounter++;
+                        }
+                    }
+                }
+
+                map[i][j].setAdjacentMines(mineCounter);
+            }
+
+            sb.append("  │\n");
+        }
+
+        // bottom border
+        sb.append("└");
+        sb.repeat("─", Math.max(0, cols * 2 + 3));
+        sb.append("┘\n");
+
+        IO.print(sb.toString());
+
+        moveTermCursor(Direction.UP, rows + 1);
+        moveTermCursor(Direction.RIGHT, 3);
+    }
+
+    private void initMap() {
+        rows = difficulty.getRows();
+        cols = difficulty.getCols();
+        totalFields = rows * cols;
+        mines = difficulty.getMines();
+        minesRemaining = mines;
+        map = new Field[rows][cols];
+
+        for (int row = 0; row < rows; row++) {
+            for (int col = 0; col < cols; col++) {
+                map[row][col] = new Field();
+            }
+        }
+    }
+
+    private boolean placeRandomMine() {
+        int row = (int) (Math.random() * rows);
+        int col = (int) (Math.random() * cols);
+
+        if (!map[row][col].isMine()) {
+            map[row][col].setMine(true);
+            return true;
+        }
+        return false;
+    }
+
+    private void initCursorPos() {
+        gameColCursorPos = 0;
+        gameRowCursorPos = 0;
+    }
+
     private Direction getDirection(int key) {
         return switch (key) {
             case 'w', 'A', 'k' -> Direction.UP;
@@ -235,7 +333,7 @@ public class Game {
     }
 
     private void handleMovement(Direction dir) {
-        if(hasAnyValidMove(dir)) moveToNextHiddenField(dir);
+        if (hasAnyValidMove(dir)) moveToNextHiddenField(dir);
         else {
             // find the next possible field depending on directional input
             findNearestPossibleField(dir);
@@ -251,14 +349,14 @@ public class Game {
         int nearestRow = -1;
         int nearestCol = -1;
 
-        for(int row = 0; row < rows; row++) {
-            for(int col = 0; col < cols; col++) {
-                if(map[row][col].isVisible()) continue;
-                if(row == gameRowCursorPos && col == gameColCursorPos) continue;
+        for (int row = 0; row < rows; row++) {
+            for (int col = 0; col < cols; col++) {
+                if (map[row][col].isVisible()) continue;
+                if (row == gameRowCursorPos && col == gameColCursorPos) continue;
                 int distance = Math.abs(row - gameRowCursorPos) + Math.abs(col - gameColCursorPos);
                 int penalty = calcPenalty(dir, row, col);
                 int score = distance + penalty;
-                if(score < bestScore) {
+                if (score < bestScore) {
                     bestScore = score;
                     nearestRow = row;
                     nearestCol = col;
@@ -266,7 +364,7 @@ public class Game {
             }
         }
 
-        if(nearestRow != -1) {
+        if (nearestRow != -1) {
             clearCursor();
             moveCursorTo(nearestRow, nearestCol);
             renderCursor();
@@ -323,7 +421,7 @@ public class Game {
                     currPosY--;
                     steps++;
                 }
-                if(gameRowCursorPos - steps < 0) yield 0;
+                if (gameRowCursorPos - steps < 0) yield 0;
                 yield steps;
             }
             case DOWN -> {
@@ -331,7 +429,7 @@ public class Game {
                     currPosY++;
                     steps++;
                 }
-                if(gameRowCursorPos + steps > rows - 1) yield 0;
+                if (gameRowCursorPos + steps > rows - 1) yield 0;
                 yield steps;
             }
             case LEFT -> {
@@ -339,7 +437,7 @@ public class Game {
                     currPosX--;
                     steps++;
                 }
-                if(gameColCursorPos - steps < 0) yield 0;
+                if (gameColCursorPos - steps < 0) yield 0;
                 yield steps;
             }
             case RIGHT -> {
@@ -347,7 +445,7 @@ public class Game {
                     currPosX++;
                     steps++;
                 }
-                if(gameColCursorPos + steps > cols - 1) yield 0;
+                if (gameColCursorPos + steps > cols - 1) yield 0;
                 yield steps;
             }
         };
@@ -360,12 +458,12 @@ public class Game {
 
         switch (dir) {
             case UP -> newRow -= steps;
-            case DOWN ->  newRow += steps;
-            case LEFT ->  newCol -= steps;
+            case DOWN -> newRow += steps;
+            case LEFT -> newCol -= steps;
             case RIGHT -> newCol += steps;
         }
 
-        if(isOutOfBounds(newCol, newRow)) return;
+        if (isOutOfBounds(newCol, newRow)) return;
 
         gameRowCursorPos = newRow;
         gameColCursorPos = newCol;
@@ -406,106 +504,9 @@ public class Game {
         IO.print("\033[u"); // resume to saved cursor pos
     }
 
-    private void setupMap() {
-        initMap();
-
-        int minesToPlace = mines;
-        while (minesToPlace > 0) {
-            boolean isMinePlaced = placeRandomMine();
-            if (isMinePlaced) minesToPlace--;
-        }
-
-        IO.println(minesRemaining + "\r");
-
-        IO.print("┌");
-        for (int h = 0; h < cols * 2 + 3; h++) {
-            IO.print("─");
-        }
-        IO.print("┐");
-
-        IO.println("\r");
-
-        int mineCounter = 0;
-        // Calculate minesNearby
-        for (int i = 0; i < rows; i++) {
-            IO.print("│  ");
-            for (int j = 0; j < cols; j++) {
-
-                if (i == 0 && j == 0) {
-                    IO.print("■");
-                } else {
-                    IO.print("□");
-                }
-
-                if (j < cols - 1) {
-                    IO.print(" ");
-                }
-
-                if (map[i][j].isMine()) {
-                    continue;
-                }
-
-                for (int k = -1; k < 2; k++) {
-                    for (int l = -1; l < 2; l++) {
-                        boolean isItself = (k == 0 && l == 0);
-                        boolean isOutOfBoundRow = (i + k < 0 || i + k > rows - 1);
-                        boolean isOutOfBoundCol = (j + l < 0 || j + l > cols - 1);
-                        if (isItself || isOutOfBoundRow || isOutOfBoundCol) continue;
-                        if (map[i + k][j + l].isMine()) {
-                            mineCounter++;
-                        }
-                    }
-                }
-
-                map[i][j].setAdjacentMines(mineCounter);
-
-                mineCounter = 0;
-            }
-            IO.print("  │");
-            IO.println("\r");
-        }
-
-        IO.print("└");
-        for (int h = 0; h < cols * 2 + 3; h++) {
-            IO.print("─");
-        }
-        IO.print("┘");
-
-        IO.println("\r");
-
-        moveTermCursor(Direction.UP, rows + 1);
-        moveTermCursor(Direction.RIGHT, 3);
-    }
-
-    private void initMap() {
-        rows = difficulty.getRows();
-        cols = difficulty.getCols();
-        totalFields = rows * cols;
-        mines = difficulty.getMines();
-        minesRemaining = mines;
-        map = new Field[rows][cols];
-
-        for (int row = 0; row < rows; row++) {
-            for (int col = 0; col < cols; col++) {
-                map[row][col] = new Field();
-            }
-        }
-    }
-
-    private boolean placeRandomMine() {
-        int row = (int) (Math.random() * rows);
-        int col = (int) (Math.random() * cols);
-
-        if (!map[row][col].isMine()) {
-            map[row][col].setMine(true);
-            return true;
-        }
-        return false;
-    }
-
     private void renderMinesRemaining() {
         IO.print("\033[s");
-        moveTermCursor(Direction.UP, GAME_TOP_UI_ROWS  + gameRowCursorPos);
+        moveTermCursor(Direction.UP, GAME_TOP_UI_ROWS + gameRowCursorPos);
 
         if (minesRemaining >= 9 || minesRemaining <= -9 || minesRemaining == 0) {
             IO.print("\033[1G");
@@ -530,11 +531,9 @@ public class Game {
     private void renderSmiley(String smiley) {
         IO.print("\033[s");
         moveTermCursor(Direction.UP, GAME_TOP_UI_ROWS + gameRowCursorPos);
-        IO.print("\033[11G");
-
+        System.out.printf("\033[%dG", cols + 2);
         // 🙂 😎 😢
         IO.print(smiley);
-
         IO.print("\033[u");
     }
 
@@ -600,33 +599,34 @@ public class Game {
 
         int minesNearby = f.getAdjacentMines();
 
-        if(minesNearby == 0) {
+        if (minesNearby == 0) {
             revealEmptyRegion(gameRowCursorPos, gameColCursorPos);
-
+            handleMovement(Direction.LEFT);
+            renderCursor();
         } else {
             IO.print(getColoredMineCount(minesNearby));
             moveTermCursor(Direction.LEFT, 1);
         }
 
-        if(!f.isVisible()) {
+        if (!f.isVisible()) {
             f.setVisible(true);
             fieldsRevealed++;
 
-            if(fieldsRevealed >= (totalFields - mines)) gameWon();
+            if (fieldsRevealed >= (totalFields - mines)) gameWon();
         }
     }
 
     private void revealEmptyRegion(int row, int col) {
-        if(isOutOfBounds(row, col)) return;
+        if (isOutOfBounds(row, col)) return;
 
         Field currField = map[row][col];
 
-        if(currField.isVisible() || currField.isMine()) return;
+        if (currField.isVisible() || currField.isMine()) return;
 
         currField.setVisible(true);
         fieldsRevealed++;
 
-        if(fieldsRevealed >= (totalFields - mines)) gameWon();
+        if (fieldsRevealed >= (totalFields - mines)) gameWon();
 
         int minesNearby = currField.getAdjacentMines();
 
@@ -664,7 +664,7 @@ public class Game {
         do {
             row = (int) (Math.random() * rows);
             col = (int) (Math.random() * cols);
-        } while(map[row][col].isMine());
+        } while (map[row][col].isMine());
 
         map[row][col].setMine(true);
         map[gameRowCursorPos][gameColCursorPos].setMine(false);
@@ -674,10 +674,10 @@ public class Game {
     }
 
     private void updateNeighbours(int row, int col, int adjacentMineChange) {
-        for(int i = -1; i <= 1; i++) {
-            for(int j = -1; j <= 1; j++) {
-                if(isOutOfBounds(row + i, col + j)) continue;
-                if(i == 0 && j == 0) continue;
+        for (int i = -1; i <= 1; i++) {
+            for (int j = -1; j <= 1; j++) {
+                if (isOutOfBounds(row + i, col + j)) continue;
+                if (i == 0 && j == 0) continue;
 
                 int adjacentMines = map[row + i][col + j].getAdjacentMines();
                 map[row + i][col + j].setAdjacentMines(adjacentMines + adjacentMineChange);
@@ -686,8 +686,8 @@ public class Game {
     }
 
     private void moveToMenu() {
+        isGameRunning = false;
         moveTermCursor(Direction.UP, gameRowCursorPos + GAME_TOP_UI_ROWS);
-
         IO.print("\033[1G");    // move cursor to first column
         IO.print("\033[0J");
         resetTimer();
@@ -700,7 +700,7 @@ public class Game {
 
         boolean waiting = true;
 
-        while(waiting) {
+        while (waiting) {
             int key = readKey();
 
             switch (key) {
@@ -726,17 +726,17 @@ public class Game {
         renderSmiley("\uD83D\uDE22");
 
         // Move to 0/0
-        if(gameRowCursorPos > 0) moveTermCursor(Direction.UP, gameRowCursorPos);
-        if(gameColCursorPos > 0 ) moveTermCursor(Direction.LEFT, gameColCursorPos * COL_WIDTH);
+        if (gameRowCursorPos > 0) moveTermCursor(Direction.UP, gameRowCursorPos);
+        if (gameColCursorPos > 0) moveTermCursor(Direction.LEFT, gameColCursorPos * COL_WIDTH);
         gameRowCursorPos = 0;
         gameColCursorPos = 0;
 
         // show all mines
-        for(int row = 0; row < rows; row++) {
-            for(int col = 0; col < cols; col++) {
+        for (int row = 0; row < rows; row++) {
+            for (int col = 0; col < cols; col++) {
                 Field f = map[row][col];
-                if(f.isMine()) {
-                    if(row == mineY && col == mineX) {
+                if (f.isMine()) {
+                    if (row == mineY && col == mineX) {
                         IO.print("\033[48;5;160m*\033[49m"); // red background
                     } else {
                         IO.print("*");
@@ -748,7 +748,7 @@ public class Game {
                     gameColCursorPos++;
                 }
             }
-            if(row < rows - 1) {
+            if (row < rows - 1) {
                 moveTermCursor(Direction.DOWN, 1);
                 moveTermCursor(Direction.LEFT, (cols - 1) * COL_WIDTH);
                 gameRowCursorPos++;
@@ -758,7 +758,7 @@ public class Game {
 
         boolean waiting = true;
 
-        while(waiting) {
+        while (waiting) {
             int key = readKey();
 
             switch (key) {
@@ -780,7 +780,7 @@ public class Game {
     }
 
     private void resetGame() {
-        IO.print("\033[4B");
+        IO.print("\033[3B");
         IO.print("\033[0J");
         resetFlagCounter();
         resetCursorPosition();
@@ -790,7 +790,7 @@ public class Game {
 
     private void resetFlagCounter() {
         IO.print("\033[s");
-        moveTermCursor(Direction.UP, GAME_TOP_UI_ROWS  + gameRowCursorPos);
+        moveTermCursor(Direction.UP, GAME_TOP_UI_ROWS + gameRowCursorPos);
         IO.print("\033[1G");
         IO.print(minesRemaining);
         moveTermCursor(Direction.LEFT, 1);
