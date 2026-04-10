@@ -1,3 +1,4 @@
+import java.io.File;
 import java.sql.*;
 
 public class RankingDB {
@@ -16,16 +17,13 @@ public class RankingDB {
     }
 
     public void createTable() {
+        File file = new File(filePath);
+        if(file.exists()) return;
         try {
             statement.executeUpdate("create table player (id integer, name string)");
             statement.executeUpdate("insert into player values(1, 'thomas')");
             statement.executeUpdate("insert into player values(2, 'brezina')");
-            ResultSet rs = statement.executeQuery("select * from player");
-            while (rs.next()) {
-                // read the result set
-                System.out.println("name = " + rs.getString("name"));
-                System.out.println("id = " + rs.getInt("id"));
-            }
+
         } catch (SQLException e) {
             e.printStackTrace(System.err);
         }

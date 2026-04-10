@@ -26,4 +26,10 @@ public enum Difficulty {
     public int getMines() {
         return mines;
     }
+
+    @Override
+    public String toString() {
+        String lower = name().toLowerCase();
+        return Character.toUpperCase(lower.charAt(0)) + lower.substring(1);
+    }
 }

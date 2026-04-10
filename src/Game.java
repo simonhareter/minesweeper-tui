@@ -1,7 +1,6 @@
 import enums.Difficulty;
 import enums.Direction;
 
-import java.io.File;
 import java.util.concurrent.atomic.AtomicInteger;
 import static helpers.InputHandler.*;
 import static helpers.TerminalUtils.*;
@@ -10,7 +9,7 @@ public class Game {
     private Difficulty difficulty;
     private Field[][] map;
     private int rows, cols, totalFields, mines;
-    private int menuCursorPos, gameColCursorPos, gameRowCursorPos;
+    private int menuSelectedIdx, difficultySelectedIdx, gameColCursorPos, gameRowCursorPos;
     private int minesRemaining;
     private int fieldsRevealed = 0;
     private boolean isFirstMove;
@@ -20,7 +19,14 @@ public class Game {
     private final AtomicInteger secondsElapsed = new AtomicInteger(0);
 
     private final RankingDB rankingDB;
-
+    private final String[] logo = {
+    "        _                                                   ",
+    "  /\\/\\ (_)_ __   ___  _____      _____  ___ _ __   ___ _ __  ",
+    " /    \\| | '_ \\ / _ \\/ __\\ \\ /\\ / / _ \\/ _ \\ '_ \\ / _ \\ '__|",
+            "/ /\\/\\ \\ | | | |  __/\\__ \\\\ V  V /  __/  __/ |_) |  __/ |   ",
+            "\\/    \\/_|_| |_|\\___||___/ \\_/\\_/ \\___|\\___| .__/ \\___|_|   ",
+            "                                           |_|              "
+};
     private final int GAME_TOP_UI_ROWS = 2;
     private final int COL_WIDTH = 2;
 
@@ -29,88 +35,159 @@ public class Game {
     }
 
     void run() {
-        //IO.print("\033[?25l"); // hide cursor
-        IO.println("\033[38;5;40mMinesweeper\033[37m\n");
+        IO.print("\033[?25l"); // hide cursor
+        renderLogo();
+        //IO.println("\033[38;5;33mMinesweeper\033[37m\n");
         initCursorPos();
         enableRawMode();
         rankingDB.createTable();
         playMenu();
-        playGame();
+    }
+
+    private void renderLogo() {
+        for (String s : logo) {
+            IO.println(s);
+        }
     }
 
     private void initCursorPos() {
-        menuCursorPos = 0;
         gameColCursorPos = 0;
         gameRowCursorPos = 0;
     }
 
     private void playMenu() {
-        IO.println("Select a difficulty:\r");
-        IO.println("[■] Beginner\r");
-        IO.println("[ ] Intermediate\r");
-        IO.println("[ ] Expert\r");
+        menuSelectedIdx = 0;
+        IO.println("\033[38;5;223m❯ Play\033[37m \r");
+        IO.println("  Rankings\r");
+        IO.println("  Quit\r");
 
-        while (true) {
+        boolean waiting = true;
+
+        while(waiting) {
             int key = readKey();
 
             switch (key) {
-                case 'q', -1, 3 -> {
-                    quitGame();
-                }
-
-                case 'w', 'A', 'k' -> {
-                    if (menuCursorPos >= 1) {
-                        menuCursorPos--;
-                        renderDifficulty(menuCursorPos);
-                    }
-                }
-
-                case 's', 'B', 'j' -> {
-                    if (menuCursorPos <= 1) {
-                        menuCursorPos++;
-                        renderDifficulty(menuCursorPos);
-                    }
-                }
-
+                case 'q', -1, 3 -> quitGame();
                 case '\n', '\r' -> {
-                    switch (menuCursorPos) {
+                    switch(menuSelectedIdx) {
                         case 0 -> {
-                            difficulty = Difficulty.BEGINNER;
+                            selectDifficulty();
+                            playGame();
                         }
-                        case 1 -> {
-                            difficulty = Difficulty.INTERMEDIATE;
-                        }
-                        case 2 -> {
-                            difficulty = Difficulty.EXPERT;
-                        }
+                        case 1 -> renderRankings();
+                        case 2 -> quitGame();
+                    }
+                    waiting = false;
+                }
+                case 'w', 'A', 'k' -> {
+                    if (menuSelectedIdx >= 1) {
+                        menuSelectedIdx--;
+                        renderMenu();
                     }
                 }
-            }
-
-            // exit loop after enter press
-            if (key == '\n' || key == '\r') {
-                IO.println();
-                break;
+                case 's', 'B', 'j' -> {
+                    if (menuSelectedIdx <= 1) {
+                        menuSelectedIdx++;
+                        renderMenu();
+                    }
+                }
             }
         }
     }
 
-    private void renderDifficulty(int selection) {
+    private void renderMenu() {
         IO.print("\033[3F");
 
-        IO.print("\033[2K");
-        IO.print("\033[1G");
-        IO.println(selection == 0 ? "[■] Beginner" : "[ ] Beginner\r");
-        IO.print("\033[2K");
-        IO.print("\033[1G");
-        IO.println(selection == 1 ? "[■] Intermediate" : "[ ] Intermediate\r");
-        IO.print("\033[2K");
-        IO.print("\033[1G");
-        IO.println(selection == 2 ? "[■] Expert" : "[ ] Expert\r");
-        IO.print("\033[1G");
+        String[] values = {"Play", "Rankings", "Quit"};
+        int menuOptions = values.length;
+
+        for(int idx = 0; idx < menuOptions; idx++) {
+            String menuOption = values[idx];
+            if(idx == menuSelectedIdx) {
+                IO.print("\033[2K");
+                IO.print("\033[1G");
+                System.out.printf("\u001B[38;5;223m❯ %s\u001B[37m \n", menuOption);
+            } else {
+                IO.print("\033[2K");
+                IO.print("\033[1G");
+                System.out.printf("  %s\n", menuOption);
+            }
+        }
+    }
+
+     private void renderRankings() {
+
+    }
+
+    private void selectDifficulty() {
+        difficultySelectedIdx = 0;
+        IO.print("\033[3F");
+
+        IO.println("Select a difficulty:\r");
+        IO.println("\u001B[38;5;223m❯ Beginner\u001B[37m\r");
+        IO.println("  Intermediate\r");
+        IO.println("  Expert\r");
+
+        boolean waiting = true;
+
+        while (waiting) {
+            int key = readKey();
+
+            switch (key) {
+                case 'q', -1, 3 -> quitGame();
+                case 'm' -> {
+                    IO.print("\033[4F");
+                    IO.print("\033[0J");
+                    playMenu();
+                }
+                case 'w', 'A', 'k' -> {
+                    if (difficultySelectedIdx >= 1) {
+                        difficultySelectedIdx--;
+                        renderDifficultyMenu();
+                    }
+                }
+                case 's', 'B', 'j' -> {
+                    if (difficultySelectedIdx <= 1) {
+                        difficultySelectedIdx++;
+                        renderDifficultyMenu();
+                    }
+                }
+                case '\n', '\r' -> {
+                    switch (difficultySelectedIdx) {
+                        case 0 -> difficulty = Difficulty.BEGINNER;
+                        case 1 -> difficulty = Difficulty.INTERMEDIATE;
+                        case 2 -> difficulty = Difficulty.EXPERT;
+                    }
+                    waiting = false;
+                }
+            }
+        }
+    }
+
+    private void renderDifficultyMenu() {
+        IO.print("\033[3F");
+
+        Difficulty[] values = Difficulty.values();
+        int difficulties = values.length;
+
+        for(int idx = 0; idx < difficulties; idx++) {
+            String difficulty = values[idx].toString();
+            if(idx == difficultySelectedIdx) {
+                IO.print("\033[2K");
+                IO.print("\033[1G");
+                System.out.printf("\u001B[38;5;223m❯ %s\u001B[37m \n", difficulty);
+            } else {
+                IO.print("\033[2K");
+                IO.print("\033[1G");
+                System.out.printf("  %s\n", difficulty);
+            }
+        }
     }
 
     private void playGame() {
+        IO.print("\033[4F");
+        IO.print("\033[0J");
+
         isGameRunning = true;
         isFirstMove = true;
         fieldsRevealed = 0;
@@ -220,8 +297,9 @@ public class Game {
     }
 
     private void quitGame() {
-        IO.print("\033[?25h");  // show cursor
+        IO.print("\033[1G");
         disableRawMode();
+        IO.print("\033[?25h");  // show cursor
         System.exit(0);
     }
 
@@ -524,6 +602,7 @@ public class Game {
 
         if(minesNearby == 0) {
             revealEmptyRegion(gameRowCursorPos, gameColCursorPos);
+
         } else {
             IO.print(getColoredMineCount(minesNearby));
             moveTermCursor(Direction.LEFT, 1);
@@ -607,14 +686,12 @@ public class Game {
     }
 
     private void moveToMenu() {
-        int MENU_TOP_UI_ROWS = 9;
-        moveTermCursor(Direction.UP, MENU_TOP_UI_ROWS + gameRowCursorPos);
+        moveTermCursor(Direction.UP, gameRowCursorPos + GAME_TOP_UI_ROWS);
 
         IO.print("\033[1G");    // move cursor to first column
         IO.print("\033[0J");
-        disableRawMode();
         resetTimer();
-        run();
+        playMenu();
     }
 
     private void gameWon() {
@@ -638,7 +715,6 @@ public class Game {
                 case 'q', 3 -> {
                     waiting = false;
                     moveTermCursor(Direction.DOWN, rows + 3 - gameRowCursorPos);
-                    IO.print("\033[1G");    // move cursor to first column
                     quitGame();
                 }
             }
@@ -697,14 +773,15 @@ public class Game {
                 case 'q', 3 -> {
                     waiting = false;
                     moveTermCursor(Direction.DOWN, rows + 3 - gameRowCursorPos);
-                    IO.print("\033[1G");    // move cursor to first column
-                   quitGame();
+                    quitGame();
                 }
             }
         }
     }
 
     private void resetGame() {
+        IO.print("\033[4B");
+        IO.print("\033[0J");
         resetFlagCounter();
         resetCursorPosition();
         resetTimer();
