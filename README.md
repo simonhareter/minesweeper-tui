@@ -46,8 +46,8 @@ make run
 ```
 
 <br>
-<img width="400" height="631" alt="image" src="https://github.com/user-attachments/assets/48dc1256-78e2-4a82-b208-b31eb9550c41" />
-<img width="470" height="631" alt="image" src="https://github.com/user-attachments/assets/9ec17a8d-094e-4519-a224-130e3166dfbe" />
+<img width="380" height="631" alt="image" src="https://github.com/user-attachments/assets/48dc1256-78e2-4a82-b208-b31eb9550c41" />
+<img width="450" height="631" alt="image" src="https://github.com/user-attachments/assets/9ec17a8d-094e-4519-a224-130e3166dfbe" />
 
 ## Make commands
 ```
