@@ -1,4 +1,6 @@
-<img width="636" height="204" alt="image" src="https://github.com/user-attachments/assets/03e5fec5-c5c9-4f4f-b426-314720396101" />
+<p align="center">
+  <img width="636" height="204" alt="image" src="https://github.com/user-attachments/assets/03e5fec5-c5c9-4f4f-b426-314720396101" />
+</p>
 <br><br>
 
 A terminal-based classic Minesweeper game written in Java 25 with rankings stored in a SQLite database (jdbc).
