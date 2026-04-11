@@ -29,19 +29,19 @@ No manual installation required. It is downloaded on first build if missing!
 - SQLite JDBC driver
 
 ## How to play
-### 2. Clone the repository
+### 1. Clone the repository
 ```
 git clone git@github.com:simonhareter/minesweeper-tui.git
 ```
-### 3. Navigate to the repository
+### 2. Navigate to the repository
 ```
 cd minesweeper-tui
 ```
-### 4. Build
+### 3. Build
 ```
 make build
 ```
-### 5. Run
+### 4. Run
 ```
 make run
 ```
