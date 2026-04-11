@@ -13,11 +13,11 @@ A terminal-based classic Minesweeper game written in Java 25 with rankings store
 ### Movement
 - wasd, arrows, hjkl
 ### General
-- Enter: Select option
-- r: Reset game
-- f: Place flag
-- m: Return to menu
-- q: Quit game
+- Enter : Select option
+- r : Reset game
+- f : Place flag
+- m : Return to menu
+- q : Quit game
 
 ## System Requirements
 - Have a Java 25+ runtime on your system
