@@ -137,6 +137,7 @@ public class Game {
                         case 0 -> Difficulty.BEGINNER;
                         case 1 -> Difficulty.INTERMEDIATE;
                         case 2 -> Difficulty.EXPERT;
+                        default -> throw new IllegalStateException("Unexpected value: " + difficultySelectedIdx);
                     };
                     waiting = false;
                 }
@@ -274,22 +275,7 @@ public class Game {
                     continue;
                 }
 
-                int mineCounter = 0;
-
-                for (int k = -1; k <= 1; k++) {
-                    for (int l = -1; l <= 1; l++) {
-
-                        boolean isItself = (k == 0 && l == 0);
-                        boolean isOutOfBoundRow = (i + k < 0 || i + k > rows - 1);
-                        boolean isOutOfBoundCol = (j + l < 0 || j + l > cols - 1);
-
-                        if (isItself || isOutOfBoundRow || isOutOfBoundCol) continue;
-
-                        if (map[i + k][j + l].isMine()) {
-                            mineCounter++;
-                        }
-                    }
-                }
+                int mineCounter = getMineCounter(i, j);
 
                 map[i][j].setAdjacentMines(mineCounter);
             }
@@ -306,6 +292,26 @@ public class Game {
 
         moveTermCursor(Direction.UP, rows + 1);
         moveTermCursor(Direction.RIGHT, 3);
+    }
+
+    private int getMineCounter(int i, int j) {
+        int mineCounter = 0;
+
+        for (int k = -1; k <= 1; k++) {
+            for (int l = -1; l <= 1; l++) {
+
+                boolean isItself = (k == 0 && l == 0);
+                boolean isOutOfBoundRow = (i + k < 0 || i + k > rows - 1);
+                boolean isOutOfBoundCol = (j + l < 0 || j + l > cols - 1);
+
+                if (isItself || isOutOfBoundRow || isOutOfBoundCol) continue;
+
+                if (map[i + k][j + l].isMine()) {
+                    mineCounter++;
+                }
+            }
+        }
+        return mineCounter;
     }
 
     private void initMap() {
