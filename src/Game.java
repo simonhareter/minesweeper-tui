@@ -132,11 +132,12 @@ public class Game {
                         renderRankings(tableName);
                         return;
                     }
-                    switch (difficultySelectedIdx) {
-                        case 0 -> difficulty = Difficulty.BEGINNER;
-                        case 1 -> difficulty = Difficulty.INTERMEDIATE;
-                        case 2 -> difficulty = Difficulty.EXPERT;
-                    }
+
+                    difficulty = switch (difficultySelectedIdx) {
+                        case 0 -> Difficulty.BEGINNER;
+                        case 1 -> Difficulty.INTERMEDIATE;
+                        case 2 -> Difficulty.EXPERT;
+                    };
                     waiting = false;
                 }
             }
