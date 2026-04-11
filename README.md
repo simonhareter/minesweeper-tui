@@ -20,6 +20,7 @@ A terminal-based classic Minesweeper game written in Java 25 with rankings store
 - q : Quit game
 
 ## System Requirements
+- Linux / Macos
 - Have a Java 25+ runtime on your system
 - Make
 
