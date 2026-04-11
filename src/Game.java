@@ -25,7 +25,6 @@ public class Game {
     private final int GAME_TOP_UI_ROWS = 2;
     private final int COL_WIDTH = 2;
     private final int GAME_BOTTOM_UI_ROWS = 2;
-    private final int SAVE_GAME_UI_ROWS = 7;
     private final RankingDB rankingDB;
     private final String[] logo = {
             "        _                                                   ",
