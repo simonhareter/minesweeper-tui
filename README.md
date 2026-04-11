@@ -5,7 +5,7 @@
 
 A terminal-based classic Minesweeper game written in Java 25 with rankings stored in a SQLite database (jdbc).
 
-## Features:
+## Features
 -  Raw terminal input
 -  Cursor-based rendering
 -  3 different difficulty modes (Beginner, Intermediate, Expert)
