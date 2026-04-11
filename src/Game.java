@@ -1,6 +1,7 @@
 import enums.Difficulty;
 import enums.Direction;
 
+import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static helpers.InputHandler.*;
@@ -23,6 +24,8 @@ public class Game {
 
     private final int GAME_TOP_UI_ROWS = 2;
     private final int COL_WIDTH = 2;
+    private final int GAME_BOTTOM_UI_ROWS = 2;
+    private final int SAVE_GAME_UI_ROWS = 7;
     private final RankingDB rankingDB;
     private final String[] logo = {
             "        _                                                   ",
@@ -41,7 +44,7 @@ public class Game {
         IO.print("\033[?25l"); // hide cursor
         renderLogo();
         enableRawMode();
-        rankingDB.createTable();
+        rankingDB.createTables();
         playMenu();
     }
 
@@ -66,10 +69,10 @@ public class Game {
                 case '\n', '\r' -> {
                     switch (menuSelectedIdx) {
                         case 0 -> {
-                            selectDifficulty();
+                            selectDifficulty(false);
                             playGame();
                         }
-                        case 1 -> renderRankings();
+                        case 1 -> selectDifficulty(true);
                         case 2 -> quitGame();
                     }
                     waiting = false;
@@ -90,7 +93,7 @@ public class Game {
         }
     }
 
-    private void selectDifficulty() {
+    private void selectDifficulty(boolean isRanking) {
         int difficultySelectedIdx = 0;
 
         renderMenu(difficultyMenu, difficultySelectedIdx, false);
@@ -121,6 +124,15 @@ public class Game {
                     }
                 }
                 case '\n', '\r' -> {
+                    if(isRanking) {
+                        String tableName = switch (difficultySelectedIdx) {
+                            case 1 -> "intermediate";
+                            case 2 -> "expert";
+                            default -> "beginner";
+                        };
+                        renderRankings(tableName);
+                        return;
+                    }
                     switch (difficultySelectedIdx) {
                         case 0 -> difficulty = Difficulty.BEGINNER;
                         case 1 -> difficulty = Difficulty.INTERMEDIATE;
@@ -156,10 +168,13 @@ public class Game {
         IO.print(sb.toString());
     }
 
-    private void renderRankings() {
+    private void renderRankings(String tableName) {
+        int DEFAULT_UI_ROWS = 6;
         IO.print("\033[3F");
         IO.print("\033[0J");
-        IO.println("render rankings lmfao");
+        IO.println("Top 10 Players: " + tableName);
+        rankingDB.printTable(tableName);
+        IO.println("Total Entries: " + rankingDB.getRows(tableName));
         IO.print("\033[1G");
 
         boolean waiting = true;
@@ -170,7 +185,7 @@ public class Game {
             switch (key) {
                 case 'q', -1, 3 -> quitGame();
                 case 'm' -> {
-                    IO.print("\033[1F");
+                    moveTermCursor(Direction.UP, DEFAULT_UI_ROWS + 10);
                     IO.print("\033[0J");
                     playMenu();
                     waiting = false;
@@ -208,7 +223,9 @@ public class Game {
                     moveTermCursor(Direction.DOWN, rows + 3 - gameRowCursorPos);
                     quitGame();
                 }
-                case 'm' -> moveToMenu();
+                case 'm' -> {
+                    moveToMenu();
+                }
                 case 'r' -> resetGame();
                 case 'f' -> {
                     placeFlag();
@@ -396,6 +413,7 @@ public class Game {
 
     private void quitGame() {
         IO.print("\033[1G");
+        rankingDB.closeConnection();
         disableRawMode();
         IO.print("\033[?25h");  // show cursor
         System.exit(0);
@@ -521,7 +539,6 @@ public class Game {
 
     private void renderGameCursorCoordinates() {
         IO.print("\033[s");
-        int GAME_BOTTOM_UI_ROWS = 2;
         moveTermCursor(Direction.DOWN, rows - gameRowCursorPos + GAME_BOTTOM_UI_ROWS);
         IO.print("\033[1G");
         System.out.printf("Cursor: (%d,%d)", gameRowCursorPos + 1, gameColCursorPos + 1);
@@ -687,8 +704,10 @@ public class Game {
 
     private void moveToMenu() {
         isGameRunning = false;
+
         moveTermCursor(Direction.UP, gameRowCursorPos + GAME_TOP_UI_ROWS);
-        IO.print("\033[1G");    // move cursor to first column
+
+        IO.print("\033[1G");
         IO.print("\033[0J");
         resetTimer();
         playMenu();
@@ -696,7 +715,16 @@ public class Game {
 
     private void gameWon() {
         isGameRunning = false;
+        timerThread.interrupt();
+        try {
+            timerThread.join();
+        } catch (InterruptedException ignored) {}
+
         renderSmiley("\uD83D\uDE0E");
+
+        IO.print("\033[s");
+        saveGameResult();
+        IO.print("\033[u");
 
         boolean waiting = true;
 
@@ -719,6 +747,39 @@ public class Game {
                 }
             }
         }
+    }
+
+    private void saveGameResult() {
+        moveTermCursor(Direction.DOWN, rows - gameRowCursorPos + GAME_BOTTOM_UI_ROWS);
+        IO.print("\033[1G");
+        IO.print("\033[0K");
+
+        Scanner in = new Scanner(System.in);
+
+        IO.println("Save your score? (y/n)");
+
+        boolean waiting = true;
+
+        while(waiting) {
+            int key = readKey();
+
+            if (key == 'y' || key == 'Y') {
+                waiting = false;
+            }
+            if (key == 'n' || key == 'N') {
+                return;
+            }
+        }
+
+        disableRawMode();
+        IO.println("Enter your name:");
+        IO.print("> ");
+
+        String name = in .nextLine();
+
+        rankingDB.saveGameResult("beginner", name, secondsElapsed.get());
+        enableRawMode();
+        IO.print("> Result saved!");
     }
 
     private void gameOver(int mineY, int mineX) {
