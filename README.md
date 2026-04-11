@@ -15,7 +15,7 @@ A terminal-based classic Minesweeper game written in Java 25 with rankings store
 ### General
 - Enter : Select option
 - r : Reset game
-- f : Place flag
+- f : Place flag / Remove flag
 - m : Return to menu
 - q : Quit game
 
