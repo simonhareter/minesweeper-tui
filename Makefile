@@ -11,13 +11,14 @@ JDBC_JAR_HASH = lib/jar.sha256
 
 build:
 	@mkdir -p lib bin
-	@if [ ! -f lib/sqlite-jdbc.jar ]; then \
+	@if [ ! -f $(JDBC_JAR) ]; then \
 		echo "Downloading SQLite JDBC..."; \
-		curl -L -o $(JDBC_JAR) https://repo.maven.apache.org/maven2/org/xerial/sqlite-jdbc/3.51.3.0/sqlite-jdbc-$(JDBC_VERSION).jar ; \
+		curl -L -o $(JDBC_JAR) $(JDBC_URL); \
 		echo "Downloading corresponding sha256 hash..."; \
-        curl -o $(JDBC_JAR_HASH) $(JDBC_URL).sha256 ; \
-        echo "Verifying checksum..."; \
-        echo "$$(cat $(JDBC_JAR_HASH))  $(JDBC_JAR)" | sha256sum -c - || (echo "Hash mismatch!" && rm -f $(JDBC_JAR) && exit 1);
+		curl -o $(JDBC_JAR_HASH) $(JDBC_URL).sha256; \
+		echo "Verifying checksum..."; \
+		echo "$$(cat $(JDBC_JAR_HASH))  $(JDBC_JAR)" | sha256sum -c - \
+		|| (echo "Hash mismatch!" && rm -f $(JDBC_JAR) && exit 1); \
 	fi
 
 	@echo "Compiling Minesweeper..."
