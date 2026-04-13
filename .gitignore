@@ -6,6 +6,7 @@ out/
 *.jar
 .idea
 *.class
+lib/
 
 Minesweeper.db
 
