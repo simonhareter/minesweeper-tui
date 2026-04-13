@@ -14,9 +14,10 @@ build:
 	@if [ ! -f lib/sqlite-jdbc.jar ]; then \
 		echo "Downloading SQLite JDBC..."; \
 		curl -L -o $(JDBC_JAR) https://repo.maven.apache.org/maven2/org/xerial/sqlite-jdbc/3.51.3.0/sqlite-jdbc-$(JDBC_VERSION).jar ; \
+		echo "Downloading corresponding sha256 hash..."; \
         curl -o $(JDBC_JAR_HASH) $(JDBC_URL).sha256 ; \
         echo "Verifying checksum..."; \
-        sha256sum -c $(JDBC_JAR_HASH) - || (echo "Hash mismatch!" && rm -f $(JDBC_JAR) && exit 1); \
+        echo "$$(cat $(JDBC_JAR_HASH))  $(JDBC_JAR)" | sha256sum -c - || (echo "Hash mismatch!" && rm -f $(JDBC_JAR) && exit 1);
 	fi
 
 	@echo "Compiling Minesweeper..."
